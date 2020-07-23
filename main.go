@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultListenAddress = ":3002"
+	defaultListenAddress = "0.0.0.0:3002"
 )
 
 type config struct {
