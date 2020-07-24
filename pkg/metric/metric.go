@@ -1,54 +1,101 @@
 package metric
 
 import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	"log"
+	"io/ioutil"
 	"net/http"
-	"net/url"
+	"os"
+	"regexp"
 	"strings"
 
-	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/rbac"
+	clusterv1 "github.com/open-cluster-management/api/cluster/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog"
+
+	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/util"
 )
 
+const (
+	managedClusterAPIPath = "/apis/cluster.open-cluster-management.io/v1/managedclusters"
+	hubClusterName        = "hub_cluster"
+)
+
+var ManagedClusterGVR schema.GroupVersionResource = schema.GroupVersionResource{
+	Group:    "cluster.open-cluster-management.io",
+	Version:  "v1",
+	Resource: "managedclusters",
+}
+
 func ModifyMetricsQueryParams(req *http.Request) {
-	log.Printf("request headers:")
-	for k, v := range req.Header {
+	token := req.Header.Get("X-Forwarded-Access-Token")
+	if token == "" {
+		klog.Fatalf("failed to get token from http header")
+	}
+
+	managedClusterURL := util.GetAPIHost() + managedClusterAPIPath
+	resp, err := sendHTTPRequest(managedClusterURL, "GET", token)
+	if err != nil {
+		klog.Fatalf("failed to send http request: %v", err)
+	}
+
+	// user is admin and have permission to access to /v1/managedclusters endpoint
+	if resp.StatusCode == http.StatusOK {
+		return
+	}
+
+	clusterList := GetUserClusterList(token)
+	if len(clusterList) == 0 {
+		klog.Fatalf("user have not permission to access cluster metrics")
+	}
+
+	klog.Infof("resp.StatusCode is: %v", resp.StatusCode)
+	klog.Infof("len(clusterList) is: %v", len(clusterList))
+
+	queryValues := req.URL.Query()
+	if len(queryValues) == 0 {
+		return
+	}
+
+	klog.Infof("URL is: %s", req.URL)
+	klog.Infof("URL path is: %v", req.URL.Path)
+	klog.Infof("URL RawQuery is: %v", req.URL.RawQuery)
+
+	klog.Info("original URL is:")
+	for k, v := range queryValues {
 		fmt.Printf("%v = %v\n", k, v)
 	}
 
-	userToken := req.Header.Get("Token")
-	if len(userToken) == 0 {
-		return
-	}
-
-	token := req.Header.Get("X-Forwarded-Access-Token")
-	if token == "" {
-		return
-	}
-
-	clusterList := rbac.GetUserClusterList(token)
-	// TODO: if user have not permission, should return a empty metrics
-	queryValues, err := url.ParseQuery(req.URL.RawQuery)
-	if len(queryValues) == 0 || err != nil {
-		return
-	}
-
 	originalQuery := queryValues.Get("query")
-	metricName, isValidMetric := containsMetricName(originalQuery)
-	// TODO: add existed cluster params
-	if isValidMetric {
-		// add clustername to query params for filter metrics, for example:
-		// cluster:capacity_cpu_cores:sum -> cluster:capacity_cpu_cores:sum{cluster=~"cluster1|cluster2"}
-		modifiedQuery := metricName + "{cluster=~\"" + strings.Join(clusterList, "|") + "\"}"
-		modifiedQueryStr := strings.ReplaceAll(originalQuery, metricName, modifiedQuery)
-		queryValues.Del("query")
-		queryValues.Add("query", modifiedQueryStr)
+	if len(originalQuery) == 0 {
+		return
 	}
 
+	klog.Infof("user is %v", req.Header.Get("X-Forwarded-User"))
+	modifiedQuery := updateQueryParams(originalQuery, clusterList)
+	queryValues.Del("query")
+	queryValues.Add("query", modifiedQuery)
 	req.URL.RawQuery = queryValues.Encode()
+
+	// just for testing
+	queryValues = req.URL.Query()
+	klog.Info("modified URL is:")
+	for k, v := range queryValues {
+		fmt.Printf("%v = %v\n", k, v)
+	}
 }
 
-func containsMetricName(queryStr string) (string, bool) {
+func updateQueryParams(originalQuery string, clusterList []string) string {
+	klog.Infof("originalQuery: %s", originalQuery)
+	klog.Infof("clusterList: %s", clusterList)
+
+	if len(clusterList) == 0 {
+		return originalQuery
+	}
 	// should get these metrics from multicluster-monitoring-operator
 	metricNameList := []string{
 		":node_memory_MemAvailable_bytes:sum",
@@ -112,11 +159,89 @@ func containsMetricName(queryStr string) (string, bool) {
 		"up",
 	}
 
+	modifiedQueryStr := originalQuery
 	for _, metricName := range metricNameList {
-		if strings.Contains(queryStr, metricName) {
-			return metricName, true
+		// match metrics_name or metrics_name{key=value}
+		reg := `\b` + metricName + `\b\s*{*`
+		result := regexp.MustCompile(reg).FindString(originalQuery)
+		if len(result) == 0 {
+			continue
+		}
+
+		if !strings.Contains(result, `{`) {
+			queryParam := metricName + "{cluster=~\"" + strings.Join(clusterList, "|") + "\"}"
+			modifiedQueryStr = strings.ReplaceAll(originalQuery, metricName, queryParam)
+		} else {
+			index := strings.Index(originalQuery, "{")
+			queryParam := "{cluster=~\"" + strings.Join(clusterList, "|") + "\","
+			modifiedQueryStr = originalQuery[:index] + queryParam + originalQuery[index+1:]
 		}
 	}
 
-	return "", false
+	return modifiedQueryStr
+}
+
+func sendHTTPRequest(url string, verb string, token string) (*http.Response, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client := http.Client{Transport: tr}
+	req, err := http.NewRequest(verb, url, nil)
+	if err != nil {
+		klog.Fatalf("failed to new http request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	return client.Do(req)
+}
+
+func GetUserClusterList(token string) []string {
+	clusterNames := []string{}
+	allClusters := getAllManagedClusterNames()
+	for _, name := range allClusters {
+		url := util.GetAPIHost() + managedClusterAPIPath + "/" + name
+		resp, err := sendHTTPRequest(url, "GET", token)
+		if err != nil {
+			klog.Errorf("failed to send http request: %v", err)
+			continue
+		}
+
+		var cluster clusterv1.ManagedCluster
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			klog.Errorf("failed to read response body: %v", err)
+			continue
+		}
+
+		requestBody := ioutil.NopCloser(bytes.NewBuffer(body))
+		err = json.NewDecoder(requestBody).Decode(&cluster)
+		if err != nil && resp.StatusCode != http.StatusForbidden {
+			klog.Errorf("failed to decode response json body: %v, response body: %s", err, body)
+			continue
+		}
+
+		clusterNames = append(clusterNames, cluster.GetName())
+	}
+
+	return clusterNames
+}
+
+func getAllManagedClusterNames() []string {
+	dynamicClient, err := util.NewDynamicClient(os.Getenv("KUBECONFIG"))
+	if err != nil {
+		klog.Fatal("failed to NewDynamicClient: %v", err)
+	}
+
+	clusters, err := dynamicClient.Resource(ManagedClusterGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Errorf("failed to get all managedclusters: %v", err)
+	}
+	clusterNames := []string{}
+	for _, cluster := range clusters.Items {
+		clusterNames = append(clusterNames, cluster.GetName())
+	}
+
+	klog.Infof("all cluster names: %v", clusterNames)
+	return clusterNames
 }

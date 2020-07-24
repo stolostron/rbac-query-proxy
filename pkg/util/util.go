@@ -23,8 +23,6 @@ func getKubeConfig(kubeConfig string) *rest.Config {
 		config *rest.Config
 	)
 
-	klog.Infof("kubeconfig is: %s", kubeConfig)
-
 	if kubeConfig != "" {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 		if err != nil {

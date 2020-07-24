@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -46,6 +45,7 @@ func main() {
 
 	klog.Infof("proxy server will running on: %s", cfg.listenAddress)
 	klog.Infof("metrics server is: %s", cfg.metricServer)
+	klog.Infof("kubeconfig is: %s", cfg.kubeconfigLocation)
 
 	http.HandleFunc("/", handleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
@@ -70,9 +70,6 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	req.Host = url.Host
 
 	metric.ModifyMetricsQueryParams(req)
-	params := req.URL.Query().Get("query")
-	fmt.Printf("params query = <%+v>\n", params)
-
 	proxy.ServeHTTP(res, req)
 }
 
