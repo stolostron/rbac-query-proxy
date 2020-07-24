@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -39,18 +38,18 @@ func main() {
 
 	flagset.Parse(os.Args[1:])
 	if err := os.Setenv("METRICS_SERVER", cfg.metricServer); err != nil {
-		klog.Fatalf("Failed to Setenv: %v", err)
+		klog.Fatalf("failed to Setenv: %v", err)
 	}
 
 	//Kubeconfig flag
 	flagset.StringVar(&cfg.kubeconfigLocation, "kubeconfig", "", "Path to a kubeconfig file, specifying how to connect to the API server. If unset, in-cluster configuration will be used")
 
-	klog.Infof("Proxy server will running on: %s", cfg.listenAddress)
-	klog.Infof("Metrics server is: %s", cfg.metricServer)
+	klog.Infof("proxy server will running on: %s", cfg.listenAddress)
+	klog.Infof("metrics server is: %s", cfg.metricServer)
 
 	http.HandleFunc("/", handleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
-		klog.Fatalf("Failed to ListenAndServe: %v", err)
+		klog.Fatalf("failed to ListenAndServe: %v", err)
 	}
 }
 
@@ -58,7 +57,7 @@ func main() {
 func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
 	url, err := url.Parse(target)
 	if err != nil {
-		log.Fatalf("failed to parse url: %v", err)
+		klog.Fatalf("failed to parse url: %v", err)
 	}
 
 	// create the reverse proxy

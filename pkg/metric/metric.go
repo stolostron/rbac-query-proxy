@@ -8,11 +8,9 @@ import (
 	"strings"
 
 	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/rbac"
-	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/token"
 )
 
 func ModifyMetricsQueryParams(req *http.Request) {
-
 	log.Printf("request headers:")
 	for k, v := range req.Header {
 		fmt.Printf("%v = %v\n", k, v)
@@ -23,9 +21,13 @@ func ModifyMetricsQueryParams(req *http.Request) {
 		return
 	}
 
-	username := token.ParseUserNameFromToken(req)
-	clusterList := rbac.GetUserClusterList(username)
+	token := req.Header.Get("X-Forwarded-Access-Token")
+	if token == "" {
+		return
+	}
 
+	clusterList := rbac.GetUserClusterList(token)
+	// TODO: if user have not permission, should return a empty metrics
 	queryValues, err := url.ParseQuery(req.URL.RawQuery)
 	if len(queryValues) == 0 || err != nil {
 		return
