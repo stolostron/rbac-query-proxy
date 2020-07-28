@@ -1,25 +1,25 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
 subjects:
 - kind: ServiceAccount
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
   namespace: default
 roleRef:
   kind: ClusterRole
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
 rules:
 - apiGroups: ["cluster.open-cluster-management.io"]
   resources: ["managedclusters"]
@@ -35,31 +35,31 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: multicluster-metrics-server-proxy
-  name: multicluster-metrics-server-proxy
+    app: rbac-query-proxy
+  name: rbac-query-proxy
 spec:
   ports:
   - name: http
     port: 8080
     targetPort: http
   selector:
-    app: multicluster-metrics-server-proxy
+    app: rbac-query-proxy
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: multicluster-metrics-server-proxy
+  name: rbac-query-proxy
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: multicluster-metrics-server-proxy
+        app: rbac-query-proxy
     spec:
-      serviceAccountName: multicluster-metrics-server-proxy
+      serviceAccountName: rbac-query-proxy
       containers:
-      - name: multicluster-metrics-server-proxy
-        image: songleo/multicluster-metrics-server-proxy:latest
+      - name: rbac-query-proxy
+        image: songleo/rbac-query-proxy:latest
         args:
         - "--listen-address=0.0.0.0:8080"
         - "--metrics-server=http://observatorium-api-open-cluster-management-monitoring.apps.soli-acm-hub.dev05.red-chesterfield.com"

@@ -14,4 +14,4 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-multicluster-metrics-server-proxy
+rbac-query-proxy

@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
 
-	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/metric"
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/metric"
 )
 
 const (

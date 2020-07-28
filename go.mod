@@ -1,4 +1,4 @@
-module github.com/open-cluster-management/multicluster-metrics-server-proxy
+module github.com/open-cluster-management/rbac-query-proxy
 
 go 1.14
 

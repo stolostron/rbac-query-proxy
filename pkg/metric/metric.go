@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog"
 
-	"github.com/open-cluster-management/multicluster-metrics-server-proxy/pkg/util"
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
 
 const (
