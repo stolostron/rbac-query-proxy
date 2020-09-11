@@ -96,6 +96,7 @@ func updateQueryParams(originalQuery string, clusterList []string) string {
 	if len(clusterList) == 0 {
 		return originalQuery
 	}
+
 	// should get these metrics from multicluster-monitoring-operator
 	metricNameList := []string{
 		":node_memory_MemAvailable_bytes:sum",
