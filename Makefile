@@ -1,16 +1,17 @@
-all: build build-img push-img
+include ./cicd-scripts/Configfile
 
-GO111MODULE=on
-export GO111MODULE
-GOOS?=$(shell uname -s | tr A-Z a-z)
-DOCKER_REPO?=songleo/rbac-query-proxy
-DOCKER_TAG?=latest
+-include $(shell curl -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
 
-build:
-	CGO_ENABLED=0 GOOS=${GOOS} go build -a -o rbac-query-proxy main.go
+docker-binary:
+	CGO_ENABLED=0 go build -a -installsuffix cgo -v -i -o build/_output/bin/rbac-query-proxy github.com/open-cluster-management/rbac-query-proxy/cmd
 
-build-img:
-	docker build -t ${DOCKER_REPO}:${DOCKER_TAG} .
+copyright-check:
+	./cicd-scripts/copyright-check.sh $(TRAVIS_BRANCH)
 
-push-img:
-	docker push ${DOCKER_REPO}:${DOCKER_TAG}
+unit-tests:
+	@echo "TODO: Run unit-tests"
+	go test ./... -v -coverprofile cover.out
+	go tool cover -html=cover.out -o=cover.html
+
+e2e-tests:
+	@echo "TODO: Run e2e-tests"
