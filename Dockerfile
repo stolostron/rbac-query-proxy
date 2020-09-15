@@ -5,7 +5,7 @@ FROM golang:1.13.13 as builder
 WORKDIR /go/src/github.com/open-cluster-management/rbac-query-proxy
 
 COPY pkg/    pkg/
-COPY main.go ./
+COPY cmd/main.go ./
 COPY go.mod ./
 
 RUN export GO111MODULE=on && go mod tidy
