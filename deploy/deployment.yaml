@@ -45,12 +45,15 @@ spec:
   selector:
     app: rbac-query-proxy
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rbac-query-proxy
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rbac-query-proxy
   template:
     metadata:
       labels:
@@ -59,10 +62,22 @@ spec:
       serviceAccountName: rbac-query-proxy
       containers:
       - name: rbac-query-proxy
-        image: songleo/rbac-query-proxy:latest
+        image: blue0/rbac-query-proxy:latest
         args:
         - "--listen-address=0.0.0.0:8080"
-        - "--metrics-server=http://observatorium-api-open-cluster-management-monitoring.apps.soli-acm-hub.dev05.red-chesterfield.com"
+        - "--metrics-server=https://observability-observatorium-observatorium-api.open-cluster-management-observability.svc.cluster.local:8080"
         ports:
         - containerPort: 8080
           name: http
+        volumeMounts:
+        - name: ca-certs
+          mountPath: /var/rbac_proxy/ca
+        - name: client-certs
+          mountPath: /var/rbac_proxy/certs
+      volumes:
+      - name: ca-certs
+        secret:
+          secretName: observability-server-certs    
+      - name: client-certs
+        secret:
+          secretName: observability-grafana-certs        
