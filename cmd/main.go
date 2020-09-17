@@ -3,17 +3,14 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
 
-	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/proxy"
 )
 
 const (
@@ -51,57 +48,10 @@ func main() {
 	klog.Infof("kubeconfig is: %s", cfg.kubeconfigLocation)
 
 	// watch all managed clusters
-	go util.WatchManagedCluster()
+	//go util.WatchManagedCluster()
 
-	http.HandleFunc("/", handleRequestAndRedirect)
+	http.HandleFunc("/", proxy.HandleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
 		klog.Fatalf("failed to ListenAndServe: %v", err)
 	}
-}
-
-func ErrorHandle(rw http.ResponseWriter, req *http.Request, err error) {
-	token := req.Header.Get("acm-access-token-cookie")
-	if token == "" {
-		rw.WriteHeader(http.StatusUnauthorized)
-	}
-}
-
-func ModifyResponse(r *http.Response) error {
-	token := r.Request.Header.Get("acm-access-token-cookie")
-	if token == "" {
-		return errors.New("found unauthorized user")
-	}
-
-	projectList := util.FetchUserProjectList(token)
-	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
-		r.Body = http.NoBody
-		return errors.New("no project found")
-	}
-
-	return nil
-}
-
-// Serve a reverse proxy for a given url
-func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
-	url, err := url.Parse(target)
-	if err != nil {
-		klog.Fatalf("failed to parse url: %v", err)
-	}
-
-	// create the reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(url)
-	proxy.ModifyResponse = ModifyResponse
-	proxy.ErrorHandler = ErrorHandle
-	// Update the headers to allow for SSL redirection
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	req.Host = url.Host
-
-	util.ModifyMetricsQueryParams(req)
-	proxy.ServeHTTP(res, req)
-}
-
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	serveReverseProxy(os.Getenv("METRICS_SERVER"), res, req)
 }
