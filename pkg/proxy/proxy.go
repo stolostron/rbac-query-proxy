@@ -77,8 +77,12 @@ func proxyRequest(r *http.Request) {
 	r.URL.Host = serverHost
 
 	if r.Method == http.MethodGet {
-		r.Method = http.MethodPost
-		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		r.Body = ioutil.NopCloser(strings.NewReader(r.URL.Query().Get("query")))
+		if strings.HasSuffix(r.URL.Path, "/api/v1/query") ||
+			strings.HasSuffix(r.URL.Path, "/api/v1/query_range") ||
+			strings.HasSuffix(r.URL.Path, "/api/v1/series") {
+			r.Method = http.MethodPost
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r.Body = ioutil.NopCloser(strings.NewReader(r.URL.RawQuery))
+		}
 	}
 }
