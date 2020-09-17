@@ -3,7 +3,10 @@
 package proxy
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -64,11 +67,38 @@ func modifyResponse(r *http.Response) error {
 
 	projectList := util.FetchUserProjectList(token)
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
-		r.Body = http.NoBody
-		return errors.New("no project found")
+		r.Body = newEmptyMatrixBody()
+		return errors.New("no project or cluster found")
 	}
 
 	return nil
+}
+
+func newEmptyMatrixHTTPBody() io.ReadCloser {
+	var bodyBuff bytes.Buffer
+	gz := gzip.NewWriter(&bodyBuff)
+	if _, err := gz.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[]}}`)); err != nil {
+		klog.Errorf("failed to write body: %v", err)
+	}
+
+	if err := gz.Close(); err != nil {
+		klog.Errorf("failed to close gzip writer: %v", err)
+	}
+
+	var gzipBuff bytes.Buffer
+	err := gzipWrite(&gzipBuff, bodyBuff.Bytes())
+	if err != nil {
+		klog.Errorf("failed to write with gizp: %v", err)
+	}
+
+	return ioutil.NopCloser(bytes.NewBufferString(gzipBuff.String()))
+}
+
+func gzipWrite(w io.Writer, data []byte) error {
+	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	defer gw.Close()
+	gw.Write(data)
+	return err
 }
 
 func proxyRequest(r *http.Request) {
