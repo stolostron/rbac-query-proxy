@@ -22,18 +22,18 @@ const (
 
 func getTLSTransport() (*http.Transport, error) {
 
-	caCertFile := path.Join(caPath, filepath.Clean("ca.crt"))
-	tlsKeyFile := path.Join(certPath, filepath.Clean("tls.key"))
-	tlsCrtFile := path.Join(certPath, filepath.Clean("tls.crt"))
+	caCertFile := path.Join(caPath, "ca.crt")
+	tlsKeyFile := path.Join(certPath, "tls.key")
+	tlsCrtFile := path.Join(certPath, "tls.crt")
 
 	// Load Server CA cert
-	caCert, err := ioutil.ReadFile(caCertFile)
+	caCert, err := ioutil.ReadFile(filepath.Clean(caCertFile))
 	if err != nil {
 		klog.Error("failed to load server ca cert file")
 		return nil, err
 	}
 	// Load client cert signed by Client CA
-	cert, err := tls.LoadX509KeyPair(tlsCrtFile, tlsKeyFile)
+	cert, err := tls.LoadX509KeyPair(filepath.Clean(tlsCrtFile), filepath.Clean(tlsKeyFile))
 	if err != nil {
 		klog.Error("failed to load client cert/key")
 		return nil, err
