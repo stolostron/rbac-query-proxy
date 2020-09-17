@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"path/filepath"
 	"time"
 
 	"k8s.io/klog"
@@ -21,9 +22,9 @@ const (
 
 func getTLSTransport() (*http.Transport, error) {
 
-	caCertFile := path.Join(caPath, "./ca.crt")
-	tlsKeyFile := path.Join(certPath, "./tls.key")
-	tlsCrtFile := path.Join(certPath, "./tls.crt")
+	caCertFile := path.Join(caPath, filepath.Clean("ca.crt"))
+	tlsKeyFile := path.Join(certPath, filepath.Clean("tls.key"))
+	tlsCrtFile := path.Join(certPath, filepath.Clean("tls.crt"))
 
 	// Load Server CA cert
 	caCert, err := ioutil.ReadFile(caCertFile)
@@ -44,6 +45,7 @@ func getTLSTransport() (*http.Transport, error) {
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      caCertPool,
+		MinVersion:   tls.VersionTLS12,
 	}
 	return &http.Transport{
 		Dial: (&net.Dialer{
