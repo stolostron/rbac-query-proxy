@@ -96,8 +96,11 @@ func newEmptyMatrixHTTPBody() io.ReadCloser {
 
 func gzipWrite(w io.Writer, data []byte) error {
 	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
 	defer gw.Close()
-	gw.Write(data)
+	_, err = gw.Write(data)
 	return err
 }
 
