@@ -67,7 +67,7 @@ func modifyResponse(r *http.Response) error {
 
 	projectList := util.FetchUserProjectList(token)
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
-		r.Body = newEmptyMatrixBody()
+		r.Body = newEmptyMatrixHTTPBody()
 		return errors.New("no project or cluster found")
 	}
 
@@ -96,8 +96,11 @@ func newEmptyMatrixHTTPBody() io.ReadCloser {
 
 func gzipWrite(w io.Writer, data []byte) error {
 	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
 	defer gw.Close()
-	gw.Write(data)
+	_, err = gw.Write(data)
 	return err
 }
 
