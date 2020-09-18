@@ -38,12 +38,12 @@ func GetAllManagedClusterNames() map[string]string {
 }
 
 func ModifyMetricsQueryParams(req *http.Request) {
-	userName := req.Header.Get("user")
+	userName := req.Header.Get("X-Forwarded-User")
 	klog.Infof("user is %v", userName)
 	klog.Infof("URL is: %s", req.URL)
 	klog.Infof("URL path is: %v", req.URL.Path)
 	klog.Infof("URL RawQuery is: %v", req.URL.RawQuery)
-	token := req.Header.Get("acm-access-token-cookie")
+	token := req.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
 		klog.Errorf("failed to get token from http header")
 	}
