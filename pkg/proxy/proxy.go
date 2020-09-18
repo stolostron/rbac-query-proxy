@@ -43,24 +43,24 @@ func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		Transport: tlsTransport,
 	}
 
-	//proxy.ModifyResponse = modifyResponse
-	//proxy.ErrorHandler = errorHandle
-	//req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	//req.Host = reqUrl.Host
+	proxy.ModifyResponse = modifyResponse
+	proxy.ErrorHandler = errorHandle
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	req.Host = serverURL.Host
 
-	//util.ModifyMetricsQueryParams(req)
+	util.ModifyMetricsQueryParams(req)
 	proxy.ServeHTTP(res, req)
 }
 
 func errorHandle(rw http.ResponseWriter, req *http.Request, err error) {
-	token := req.Header.Get("acm-access-token-cookie")
+	token := req.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
 		rw.WriteHeader(http.StatusUnauthorized)
 	}
 }
 
 func modifyResponse(r *http.Response) error {
-	token := r.Request.Header.Get("acm-access-token-cookie")
+	token := r.Request.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
 		return errors.New("found unauthorized user")
 	}
