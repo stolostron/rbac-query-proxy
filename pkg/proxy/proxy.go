@@ -67,7 +67,7 @@ func modifyResponse(r *http.Response) error {
 
 	projectList := util.FetchUserProjectList(token)
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
-		r.Body = newEmptyMatrixBody()
+		r.Body = newEmptyMatrixHTTPBody()
 		return errors.New("no project or cluster found")
 	}
 
