@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -64,18 +65,8 @@ func ModifyMetricsQueryParams(req *http.Request) {
 		return
 	}
 
-	originalQuery := queryValues.Get("query")
-	if len(originalQuery) == 0 {
-		return
-	}
-
-	modifiedQuery, err := rewrite.InjectLabels(originalQuery, "cluster", clusterList)
-	if err != nil {
-		return
-	}
-
-	queryValues.Del("query")
-	queryValues.Add("query", modifiedQuery)
+	queryValues = rewriteQuery(queryValues, clusterList, "query")
+	queryValues = rewriteQuery(queryValues, clusterList, "match[]")
 	req.URL.RawQuery = queryValues.Encode()
 
 	queryValues = req.URL.Query()
@@ -264,4 +255,20 @@ func GetKubeClient(kubeConfig string) kubernetes.Interface {
 		klog.Fatalf("Failed to instantiate Kubernetes client: %v", err)
 	}
 	return kubeClient
+}
+
+func rewriteQuery(queryValues url.Values, clusterList []string, key string) url.Values {
+	originalQuery := queryValues.Get(key)
+	if len(originalQuery) == 0 {
+		return queryValues
+	}
+
+	modifiedQuery, err := rewrite.InjectLabels(originalQuery, "cluster", clusterList)
+	if err != nil {
+		return queryValues
+	}
+
+	queryValues.Del(key)
+	queryValues.Add(key, modifiedQuery)
+	return queryValues
 }
