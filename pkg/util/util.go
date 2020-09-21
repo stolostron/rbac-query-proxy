@@ -186,6 +186,9 @@ func Contains(list []string, s string) bool {
 
 // canAccessAllClusters check user have permission to access all clusters
 func canAccessAllClusters(projectList []string) bool {
+	if len(allManagedClusterNames) == 0 && len(projectList) == 0 {
+		return false
+	}
 
 	for name := range allManagedClusterNames {
 		if !Contains(projectList, name) {
