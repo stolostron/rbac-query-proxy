@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/open-cluster-management/rbac-query-proxy/pkg/proxy"
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
 
 const (
@@ -48,7 +49,7 @@ func main() {
 	klog.Infof("kubeconfig is: %s", cfg.kubeconfigLocation)
 
 	// watch all managed clusters
-	//go util.WatchManagedCluster()
+	go util.WatchManagedCluster()
 
 	http.HandleFunc("/", proxy.HandleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
