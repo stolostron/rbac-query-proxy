@@ -24,6 +24,7 @@ import (
 
 	clusterclientset "github.com/open-cluster-management/api/client/cluster/clientset/versioned"
 	clusterv1 "github.com/open-cluster-management/api/cluster/v1"
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/rewrite"
 )
 
 const (
@@ -57,7 +58,31 @@ func ModifyMetricsQueryParams(req *http.Request) {
 	clusterList := fetchUserClusterList(token, projectList)
 	klog.Infof("user <%v> have access to these clusters: %v", userName, clusterList)
 
-	// TODO: use clusterList to modify query url
+	// use clusterList to modify query url
+	queryValues := req.URL.Query()
+	if len(queryValues) == 0 {
+		return
+	}
+
+	originalQuery := queryValues.Get("query")
+	if len(originalQuery) == 0 {
+		return
+	}
+
+	modifiedQuery, err := rewrite.InjectLabels(originalQuery, "cluster", clusterList)
+	if err != nil {
+		return
+	}
+
+	queryValues.Del("query")
+	queryValues.Add("query", modifiedQuery)
+	req.URL.RawQuery = queryValues.Encode()
+
+	queryValues = req.URL.Query()
+	klog.Info("modified URL is:")
+	klog.Infof("URL is: %s", req.URL)
+	klog.Infof("URL path is: %v", req.URL.Path)
+	klog.Infof("URL RawQuery is: %v", req.URL.RawQuery)
 
 	return
 }
