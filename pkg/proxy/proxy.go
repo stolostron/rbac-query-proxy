@@ -12,10 +12,15 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 	"k8s.io/klog"
+)
+
+const (
+	basePath = "/api/metrics/v1/default"
 )
 
 var (
@@ -47,6 +52,7 @@ func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	proxy.ErrorHandler = errorHandle
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = serverURL.Host
+	req.URL.Path = path.Join(basePath, req.URL.Path)
 
 	util.ModifyMetricsQueryParams(req)
 	proxy.ServeHTTP(res, req)
