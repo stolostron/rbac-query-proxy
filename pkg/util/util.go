@@ -122,7 +122,7 @@ func WatchManagedCluster() {
 
 func sendHTTPRequest(url string, verb string, token string) (*http.Response, error) {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{},
 	}
 
 	client := http.Client{Transport: tr}

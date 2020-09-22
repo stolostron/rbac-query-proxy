@@ -36,7 +36,7 @@ func main() {
 	flagset.StringVar(&cfg.listenAddress, "listen-address", defaultListenAddress, "The address HTTP server should listen on.")
 	flagset.StringVar(&cfg.metricServer, "metrics-server", "", "The address the metrics server should run on.")
 
-	flagset.Parse(os.Args[1:])
+	_ = flagset.Parse(os.Args[1:])
 	if err := os.Setenv("METRICS_SERVER", cfg.metricServer); err != nil {
 		klog.Fatalf("failed to Setenv: %v", err)
 	}
