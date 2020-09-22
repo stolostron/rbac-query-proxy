@@ -33,16 +33,19 @@ func main() {
 	flagset := pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
 	flagset.AddGoFlagSet(klogFlags)
 
-	flagset.StringVar(&cfg.listenAddress, "listen-address", defaultListenAddress, "The address HTTP server should listen on.")
-	flagset.StringVar(&cfg.metricServer, "metrics-server", "", "The address the metrics server should run on.")
+	flagset.StringVar(&cfg.listenAddress, "listen-address",
+		defaultListenAddress, "The address HTTP server should listen on.")
+	flagset.StringVar(&cfg.metricServer, "metrics-server", "",
+		"The address the metrics server should run on.")
 
-	flagset.Parse(os.Args[1:])
+	_ = flagset.Parse(os.Args[1:])
 	if err := os.Setenv("METRICS_SERVER", cfg.metricServer); err != nil {
 		klog.Fatalf("failed to Setenv: %v", err)
 	}
 
 	//Kubeconfig flag
-	flagset.StringVar(&cfg.kubeconfigLocation, "kubeconfig", "", "Path to a kubeconfig file, specifying how to connect to the API server. If unset, in-cluster configuration will be used")
+	flagset.StringVar(&cfg.kubeconfigLocation, "kubeconfig", "",
+		"Path to a kubeconfig file. If unset, in-cluster configuration will be used")
 
 	klog.Infof("proxy server will running on: %s", cfg.listenAddress)
 	klog.Infof("metrics server is: %s", cfg.metricServer)
