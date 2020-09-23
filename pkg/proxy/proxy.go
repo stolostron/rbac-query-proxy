@@ -111,10 +111,8 @@ func gzipWrite(w io.Writer, data []byte) error {
 }
 
 func proxyRequest(r *http.Request) {
-
 	r.URL.Scheme = serverScheme
 	r.URL.Host = serverHost
-
 	if r.Method == http.MethodGet {
 		if strings.HasSuffix(r.URL.Path, "/api/v1/query") ||
 			strings.HasSuffix(r.URL.Path, "/api/v1/query_range") ||
