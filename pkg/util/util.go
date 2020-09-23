@@ -5,11 +5,13 @@ package util
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"time"
 
 	projectv1 "github.com/openshift/api/project/v1"
@@ -31,6 +33,7 @@ import (
 const (
 	projectsAPIPath       = "/apis/project.openshift.io/v1/projects"
 	managedClusterAPIPath = "/apis/cluster.open-cluster-management.io/v1/managedclusters"
+	caPath                = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
 
 var allManagedClusterNames map[string]string
@@ -121,8 +124,20 @@ func WatchManagedCluster() {
 }
 
 func sendHTTPRequest(url string, verb string, token string) (*http.Response, error) {
+	caCert, err := ioutil.ReadFile(filepath.Clean(caPath))
+	if err != nil {
+		klog.Error("failed to load root ca cert file")
+		return nil, err
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{},
+		TLSClientConfig: &tls.Config{
+			RootCAs:    caCertPool,
+			MinVersion: tls.VersionTLS12,
+		},
 	}
 
 	client := http.Client{Transport: tr}
