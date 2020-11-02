@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -156,6 +157,7 @@ func FetchUserProjectList(token string) []string {
 	resp, err := sendHTTPRequest(url, "GET", token)
 	if err != nil {
 		klog.Errorf("failed to send http request: %v", err)
+		writeError(fmt.Sprintf("failed to send http request: %v", err))
 		return projectList
 	}
 
@@ -286,4 +288,18 @@ func rewriteQuery(queryValues url.Values, clusterList []string, key string) url.
 	queryValues.Del(key)
 	queryValues.Add(key, modifiedQuery)
 	return queryValues
+}
+
+func writeError(msg string) {
+	f, err := os.OpenFile("/tmp/health", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		klog.Errorf("failed to create file for probe: %v", err)
+	}
+
+	_, err = f.Write([]byte(msg))
+	if err != nil {
+		klog.Errorf("failed to write error message to probe file: %v", err)
+	}
+
+	f.Close()
 }
