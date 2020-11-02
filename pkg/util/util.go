@@ -291,7 +291,7 @@ func rewriteQuery(queryValues url.Values, clusterList []string, key string) url.
 }
 
 func writeError(msg string) {
-	f, err := os.OpenFile("/tmp/health", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("/tmp/health", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		klog.Errorf("failed to create file for probe: %v", err)
 	}
@@ -301,5 +301,5 @@ func writeError(msg string) {
 		klog.Errorf("failed to write error message to probe file: %v", err)
 	}
 
-	f.Close()
+	_ = f.Close()
 }
