@@ -157,6 +157,8 @@ func FetchUserProjectList(token string) []string {
 	resp, err := sendHTTPRequest(url, "GET", token)
 	if err != nil {
 		klog.Errorf("failed to send http request: %v", err)
+		//This is adhoc step to make sure that if this error happens, we can automatically restart the POD using liveness probe which checks for this file.
+		//Once the real cause is determined and fixed, we will remove this.
 		writeError(fmt.Sprintf("failed to send http request: %v", err))
 		return projectList
 	}
