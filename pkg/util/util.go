@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -156,6 +157,12 @@ func FetchUserProjectList(token string) []string {
 	resp, err := sendHTTPRequest(url, "GET", token)
 	if err != nil {
 		klog.Errorf("failed to send http request: %v", err)
+		/*
+			This is adhoc step to make sure that if this error happens,
+			we can automatically restart the POD using liveness probe which checks for this file.
+			Once the real cause is determined and fixed, we will remove this.
+		*/
+		writeError(fmt.Sprintf("failed to send http request: %v", err))
 		return projectList
 	}
 
@@ -286,4 +293,18 @@ func rewriteQuery(queryValues url.Values, clusterList []string, key string) url.
 	queryValues.Del(key)
 	queryValues.Add(key, modifiedQuery)
 	return queryValues
+}
+
+func writeError(msg string) {
+	f, err := os.OpenFile("/tmp/health", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		klog.Errorf("failed to create file for probe: %v", err)
+	}
+
+	_, err = f.Write([]byte(msg))
+	if err != nil {
+		klog.Errorf("failed to write error message to probe file: %v", err)
+	}
+
+	_ = f.Close()
 }
