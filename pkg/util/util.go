@@ -3,7 +3,6 @@
 package util
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -139,12 +138,15 @@ func sendHTTPRequest(url string, verb string, token string) (*http.Response, err
 			RootCAs:    caCertPool,
 			MinVersion: tls.VersionTLS12,
 		},
+		MaxIdleConns:    100,
+		IdleConnTimeout: 60 * time.Second,
 	}
 
 	client := http.Client{Transport: tr}
 	req, err := http.NewRequest(verb, url, nil)
 	if err != nil {
 		klog.Errorf("failed to new http request: %v", err)
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -152,7 +154,6 @@ func sendHTTPRequest(url string, verb string, token string) (*http.Response, err
 }
 
 func FetchUserProjectList(token string) []string {
-	projectList := []string{}
 	url := GetAPIHost() + projectsAPIPath
 	resp, err := sendHTTPRequest(url, "GET", token)
 	if err != nil {
@@ -163,25 +164,20 @@ func FetchUserProjectList(token string) []string {
 			Once the real cause is determined and fixed, we will remove this.
 		*/
 		writeError(fmt.Sprintf("failed to send http request: %v", err))
-		return projectList
+		return []string{}
 	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		klog.Errorf("failed to read response body: %v", err)
-		return projectList
-	}
+	defer resp.Body.Close()
 
 	var projects projectv1.ProjectList
-	requestBody := ioutil.NopCloser(bytes.NewBuffer(body))
-	err = json.NewDecoder(requestBody).Decode(&projects)
+	err = json.NewDecoder(resp.Body).Decode(&projects)
 	if err != nil {
-		klog.Errorf("failed to decode response json body: %v, response body: %s", err, body)
-		return projectList
+		klog.Errorf("failed to decode response json body: %v", err)
+		return []string{}
 	}
 
-	for _, p := range projects.Items {
-		projectList = append(projectList, p.Name)
+	projectList := make([]string, len(projects.Items))
+	for idx, p := range projects.Items {
+		projectList[idx] = p.Name
 	}
 
 	return projectList
