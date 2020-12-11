@@ -11,14 +11,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+cd ${WORKDIR}/..
+git clone https://github.com/open-cluster-management/observability-e2e-test.git
+cd observability-e2e-test
+
 go get -u github.com/onsi/ginkgo/ginkgo
 
 export KUBECONFIG=$HOME/.kube/kind-config-hub
 export IMPORT_KUBECONFIG=$HOME/.kube/kind-config-spoke
 export SKIP_INSTALL_STEP=true
 export SKIP_UNINSTALL_STEP=true
-
-cd ${WORKDIR}
 
 git clone https://github.com/open-cluster-management/observability-gitops.git
 
