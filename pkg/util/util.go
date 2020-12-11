@@ -17,13 +17,8 @@ import (
 	projectv1 "github.com/openshift/api/project/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	clusterclientset "github.com/open-cluster-management/api/client/cluster/clientset/versioned"
 	clusterv1 "github.com/open-cluster-management/api/cluster/v1"
@@ -31,7 +26,6 @@ import (
 )
 
 const (
-	projectsAPIPath       = "/apis/project.openshift.io/v1/projects"
 	managedClusterAPIPath = "/apis/cluster.open-cluster-management.io/v1/managedclusters"
 	caPath                = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
@@ -42,7 +36,8 @@ func GetAllManagedClusterNames() map[string]string {
 	return allManagedClusterNames
 }
 
-func ModifyMetricsQueryParams(req *http.Request) {
+// ModifyMetricsQueryParams will modify request url params for query metrics
+func ModifyMetricsQueryParams(req *http.Request, url string) {
 	userName := req.Header.Get("X-Forwarded-User")
 	klog.Infof("user is %v", userName)
 	klog.Infof("URL is: %s", req.URL)
@@ -52,14 +47,12 @@ func ModifyMetricsQueryParams(req *http.Request) {
 	if token == "" {
 		klog.Errorf("failed to get token from http header")
 	}
-
-	projectList := FetchUserProjectList(token)
+	projectList := FetchUserProjectList(token, url)
 	if canAccessAllClusters(projectList) {
 		klog.Infof("user <%v> have access to all clusters", userName)
 		return
 	}
-
-	clusterList := fetchUserClusterList(token, projectList)
+	clusterList := getUserClusterList(projectList)
 	klog.Infof("user <%v> have access to these clusters: %v", userName, clusterList)
 
 	// use clusterList to modify query url
@@ -81,13 +74,9 @@ func ModifyMetricsQueryParams(req *http.Request) {
 	return
 }
 
-func WatchManagedCluster() {
+// WatchManagedCluster will watch and save managedcluster when create/update/delete managedcluster
+func WatchManagedCluster(clusterClient clusterclientset.Interface) {
 	allManagedClusterNames = map[string]string{}
-	clusterClient, err := clusterclientset.NewForConfig(config.GetConfigOrDie())
-	if err != nil {
-		klog.Fatalf("failed to new cluster clientset: %v", err)
-	}
-
 	watchlist := cache.NewListWatchFromClient(clusterClient.ClusterV1().RESTClient(), "managedclusters", v1.NamespaceAll,
 		fields.Everything())
 	_, controller := cache.NewInformer(
@@ -124,6 +113,19 @@ func WatchManagedCluster() {
 }
 
 func sendHTTPRequest(url string, verb string, token string) (*http.Response, error) {
+	req, err := http.NewRequest(verb, url, nil)
+	if err != nil {
+		klog.Errorf("failed to new http request: %v", err)
+		return nil, err
+	}
+
+	if len(token) == 0 {
+		transport := &http.Transport{}
+		defaultClient := &http.Client{Transport: transport}
+		return defaultClient.Do(req)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
 	caCert, err := ioutil.ReadFile(filepath.Clean(caPath))
 	if err != nil {
 		klog.Error("failed to load root ca cert file")
@@ -143,18 +145,10 @@ func sendHTTPRequest(url string, verb string, token string) (*http.Response, err
 	}
 
 	client := http.Client{Transport: tr}
-	req, err := http.NewRequest(verb, url, nil)
-	if err != nil {
-		klog.Errorf("failed to new http request: %v", err)
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
 	return client.Do(req)
 }
 
-func FetchUserProjectList(token string) []string {
-	url := GetAPIHost() + projectsAPIPath
+func FetchUserProjectList(token string, url string) []string {
 	resp, err := sendHTTPRequest(url, "GET", token)
 	if err != nil {
 		klog.Errorf("failed to send http request: %v", err)
@@ -208,7 +202,7 @@ func canAccessAllClusters(projectList []string) bool {
 	return true
 }
 
-func fetchUserClusterList(token string, projectList []string) []string {
+func getUserClusterList(projectList []string) []string {
 	clusterList := []string{}
 	if len(projectList) == 0 {
 		return clusterList
@@ -222,57 +216,6 @@ func fetchUserClusterList(token string, projectList []string) []string {
 	}
 
 	return clusterList
-}
-
-func GetEnv(key, defaultValue string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return defaultValue
-}
-
-func getKubeConfig(kubeConfig string) *rest.Config {
-	var (
-		err    error
-		config *rest.Config
-	)
-
-	if kubeConfig != "" {
-		config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
-		if err != nil {
-			klog.Fatal("unable to build rest config based on provided path to kubeconfig file")
-		}
-	} else {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			klog.Fatal("cannot find Service Account in pod to build in-cluster rest config")
-		}
-	}
-	return config
-}
-
-func GetAPIHost() string {
-	config := getKubeConfig(os.Getenv("KUBECONFIG"))
-	return config.Host
-}
-
-func NewDynamicClient(kubeConfig string) (dynamic.Interface, error) {
-	config := getKubeConfig(kubeConfig)
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return dynamicClient, nil
-}
-
-func GetKubeClient(kubeConfig string) kubernetes.Interface {
-	config := getKubeConfig(kubeConfig)
-	kubeClient, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatalf("Failed to instantiate Kubernetes client: %v", err)
-	}
-	return kubeClient
 }
 
 func rewriteQuery(queryValues url.Values, clusterList []string, key string) url.Values {

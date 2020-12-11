@@ -9,7 +9,9 @@ import (
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
+	clusterclientset "github.com/open-cluster-management/api/client/cluster/clientset/versioned"
 	"github.com/open-cluster-management/rbac-query-proxy/pkg/proxy"
 	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
@@ -18,7 +20,7 @@ const (
 	defaultListenAddress = "0.0.0.0:3002"
 )
 
-type config struct {
+type proxyConf struct {
 	listenAddress      string
 	metricServer       string
 	kubeconfigLocation string
@@ -26,7 +28,7 @@ type config struct {
 
 func main() {
 
-	cfg := config{}
+	cfg := proxyConf{}
 
 	klogFlags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	klog.InitFlags(klogFlags)
@@ -51,8 +53,12 @@ func main() {
 	klog.Infof("metrics server is: %s", cfg.metricServer)
 	klog.Infof("kubeconfig is: %s", cfg.kubeconfigLocation)
 
+	clusterClient, err := clusterclientset.NewForConfig(config.GetConfigOrDie())
+	if err != nil {
+		klog.Fatalf("failed to new cluster clientset: %v", err)
+	}
 	// watch all managed clusters
-	go util.WatchManagedCluster()
+	go util.WatchManagedCluster(clusterClient)
 
 	http.HandleFunc("/", proxy.HandleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
