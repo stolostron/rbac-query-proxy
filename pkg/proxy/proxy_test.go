@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,64 @@ func TestNewEmptyMatrixHTTPBody(t *testing.T) {
 	emptyMatrix := `{"status":"success","data":{"resultType":"matrix","result":[]}}`
 	if decompressedBuff.String() != emptyMatrix {
 		t.Errorf("(%v) is not the expected: (%v)", decompressedBuff.String(), emptyMatrix)
+	}
+}
+
+type FakeResponse struct {
+	t       *testing.T
+	headers http.Header
+	body    []byte
+	status  int
+}
+
+func NewFakeResponse(t *testing.T) *FakeResponse {
+	return &FakeResponse{
+		t:       t,
+		headers: make(http.Header),
+	}
+}
+
+func (r *FakeResponse) Header() http.Header {
+	return r.headers
+}
+
+func (r *FakeResponse) Write(body []byte) (int, error) {
+	r.body = body
+	return len(body), nil
+}
+
+func (r *FakeResponse) WriteHeader(status int) {
+	r.status = status
+}
+
+func TestErrorHandle(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://127.0.0.1:3002/metrics/query?query=foo", nil)
+	req.Header.Set("X-Forwarded-User", "test")
+	var err error
+	fakeResp := NewFakeResponse(t)
+	errorHandle(fakeResp, req, err)
+	if fakeResp.status != http.StatusUnauthorized {
+		t.Errorf("failed to get expected status: %v", fakeResp.status)
+	}
+}
+
+func TestModifyResponse(t *testing.T) {
+	req, _ := http.NewRequest("GET", "http://127.0.0.1:3002/metrics/query?query=foo", nil)
+	resp := http.Response{
+		Body:    ioutil.NopCloser(bytes.NewBufferString("test")),
+		Header:  make(http.Header),
+		Request: req,
+	}
+	resp.Request.Header.Set("X-Forwarded-Access-Token", "test")
+	err := modifyResponse(&resp)
+	if !strings.Contains(err.Error(), "no project or cluster found") {
+		t.Errorf("failed to test modifyResponse: %v", err)
+	}
+
+	resp.Request.Header.Del("X-Forwarded-Access-Token")
+	err = modifyResponse(&resp)
+	if !strings.Contains(err.Error(), "found unauthorized user") {
+		t.Errorf("failed to test modifyResponse: %v", err)
 	}
 }
 
