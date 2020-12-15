@@ -15,12 +15,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
 
 const (
-	basePath = "/api/metrics/v1/default"
+	basePath        = "/api/metrics/v1/default"
+	projectsAPIPath = "/apis/project.openshift.io/v1/projects"
 )
 
 var (
@@ -53,8 +56,7 @@ func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = serverURL.Host
 	req.URL.Path = path.Join(basePath, req.URL.Path)
-
-	util.ModifyMetricsQueryParams(req)
+	util.ModifyMetricsQueryParams(req, config.GetConfigOrDie().Host)
 	proxy.ServeHTTP(res, req)
 }
 
@@ -71,7 +73,7 @@ func modifyResponse(r *http.Response) error {
 		return errors.New("found unauthorized user")
 	}
 
-	projectList := util.FetchUserProjectList(token)
+	projectList := util.FetchUserProjectList(token, config.GetConfigOrDie().Host)
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
 		r.Body = newEmptyMatrixHTTPBody()
 		return errors.New("no project or cluster found")
