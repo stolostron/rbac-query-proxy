@@ -56,7 +56,7 @@ func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = serverURL.Host
 	req.URL.Path = path.Join(basePath, req.URL.Path)
-	util.ModifyMetricsQueryParams(req, config.GetConfigOrDie().Host)
+	util.ModifyMetricsQueryParams(req, config.GetConfigOrDie().Host+projectsAPIPath)
 	proxy.ServeHTTP(res, req)
 }
 
@@ -73,7 +73,18 @@ func modifyResponse(r *http.Response) error {
 		return errors.New("found unauthorized user")
 	}
 
-	projectList := util.FetchUserProjectList(token, config.GetConfigOrDie().Host)
+	userName := r.Request.Header.Get("X-Forwarded-User")
+	if userName == "" {
+		return errors.New("failed to found user name")
+	}
+
+	projectList, ok := util.GetUserProjectList(token)
+	if !ok {
+		projectList = util.FetchUserProjectList(token, config.GetConfigOrDie().Host+projectsAPIPath)
+		up := util.NewUserProject(userName, token, projectList)
+		util.UpdateUserProject(up)
+	}
+
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
 		r.Body = newEmptyMatrixHTTPBody()
 		return errors.New("no project or cluster found")

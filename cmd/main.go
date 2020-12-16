@@ -57,8 +57,10 @@ func main() {
 	if err != nil {
 		klog.Fatalf("failed to new cluster clientset: %v", err)
 	}
+
 	// watch all managed clusters
 	go util.WatchManagedCluster(clusterClient)
+	go util.CleanExpiredProjectInfo(24 * 60 * 60)
 
 	http.HandleFunc("/", proxy.HandleRequestAndRedirect)
 	if err := http.ListenAndServe(cfg.listenAddress, nil); err != nil {
