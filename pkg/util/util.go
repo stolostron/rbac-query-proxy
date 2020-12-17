@@ -60,11 +60,12 @@ func ModifyMetricsQueryParams(req *http.Request, url string) {
 	klog.V(1).Infof("cluster list: %v", allManagedClusterNames)
 	klog.V(1).Infof("user <%s> project list: %v", userName, projectList)
 	if canAccessAllClusters(projectList) {
-		klog.V(1).Infof("user <%v> have access to all clusters", userName)
+		klog.Infof("user <%v> have access to all clusters", userName)
 		return
 	}
+
 	clusterList := getUserClusterList(projectList)
-	klog.V(1).Infof("user <%v> have access to these clusters: %v", userName, clusterList)
+	klog.Infof("user <%v> have access to these clusters: %v", userName, clusterList)
 	queryValues := req.URL.Query()
 	if len(queryValues) == 0 {
 		return
