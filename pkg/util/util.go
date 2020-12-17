@@ -36,6 +36,10 @@ func GetAllManagedClusterNames() map[string]string {
 	return allManagedClusterNames
 }
 
+func InitAllManagedClusterNames() {
+	allManagedClusterNames = map[string]string{}
+}
+
 // ModifyMetricsQueryParams will modify request url params for query metrics
 func ModifyMetricsQueryParams(req *http.Request, url string) {
 	userName := req.Header.Get("X-Forwarded-User")
@@ -85,7 +89,7 @@ func ModifyMetricsQueryParams(req *http.Request, url string) {
 
 // WatchManagedCluster will watch and save managedcluster when create/update/delete managedcluster
 func WatchManagedCluster(clusterClient clusterclientset.Interface) {
-	allManagedClusterNames = map[string]string{}
+	InitAllManagedClusterNames()
 	watchlist := cache.NewListWatchFromClient(clusterClient.ClusterV1().RESTClient(), "managedclusters", v1.NamespaceAll,
 		fields.Everything())
 	_, controller := cache.NewInformer(

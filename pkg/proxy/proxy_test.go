@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
@@ -87,10 +86,14 @@ func TestPreCheckRequest(t *testing.T) {
 	}
 	resp.Request.Header.Set("X-Forwarded-Access-Token", "test")
 	resp.Request.Header.Set("X-Forwarded-User", "test")
-	go util.CleanExpiredProjectInfo(1)
-	time.Sleep(time.Second * 1)
+	util.InitUserProjectInfo()
+	up := util.NewUserProject("test", "test", []string{"p"})
+	util.UpdateUserProject(up)
+	util.InitAllManagedClusterNames()
+	clusters := util.GetAllManagedClusterNames()
+	clusters["p"] = "p"
 	err := preCheckRequest(req)
-	if !strings.Contains(err.Error(), "no project or cluster found") {
+	if err != nil {
 		t.Errorf("failed to test preCheckRequest: %v", err)
 	}
 

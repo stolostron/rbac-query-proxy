@@ -23,6 +23,11 @@ type UserProject struct {
 	ProjectList []string
 }
 
+func InitUserProjectInfo() {
+	userProjectInfo = new(UserProjectInfo)
+	userProjectInfo.ProjectInfo = map[string]UserProject{}
+}
+
 func NewUserProject(userName string, token string, projects []string) UserProject {
 	up := UserProject{}
 	up.UserName = userName
@@ -55,8 +60,7 @@ func GetUserProjectList(token string) ([]string, bool) {
 }
 
 func CleanExpiredProjectInfo(expiredTimeSeconds int64) {
-	userProjectInfo = new(UserProjectInfo)
-	userProjectInfo.ProjectInfo = map[string]UserProject{}
+	InitUserProjectInfo()
 	ticker := time.NewTicker(time.Duration(time.Second * time.Duration(expiredTimeSeconds)))
 	defer ticker.Stop()
 
