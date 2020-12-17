@@ -34,7 +34,10 @@ var (
 // HandleRequestAndRedirect is used to init proxy handler
 func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	if preCheckRequest(req) != nil {
-		res.Write(newEmptyMatrixHTTPBody())
+		_, err := res.Write(newEmptyMatrixHTTPBody())
+		if err != nil {
+			klog.Errorf("failed to write response: %v", err)
+		}
 		return
 	}
 
