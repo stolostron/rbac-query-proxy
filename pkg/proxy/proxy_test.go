@@ -11,13 +11,14 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/open-cluster-management/rbac-query-proxy/pkg/util"
 )
 
 func TestNewEmptyMatrixHTTPBody(t *testing.T) {
 	body := newEmptyMatrixHTTPBody()
-	bodyStr, _ := ioutil.ReadAll(body)
-
-	gr, err := gzip.NewReader(bytes.NewBuffer([]byte(bodyStr)))
+	gr, err := gzip.NewReader(bytes.NewBuffer([]byte(body)))
 	defer gr.Close()
 	data, err := ioutil.ReadAll(gr)
 	if err != nil {
@@ -77,7 +78,7 @@ func TestErrorHandle(t *testing.T) {
 	}
 }
 
-func TestModifyResponse(t *testing.T) {
+func TestPreCheckRequest(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:3002/metrics/query?query=foo", nil)
 	resp := http.Response{
 		Body:    ioutil.NopCloser(bytes.NewBufferString("test")),
@@ -85,15 +86,24 @@ func TestModifyResponse(t *testing.T) {
 		Request: req,
 	}
 	resp.Request.Header.Set("X-Forwarded-Access-Token", "test")
-	err := modifyResponse(&resp)
+	resp.Request.Header.Set("X-Forwarded-User", "test")
+	go util.CleanExpiredProjectInfo(1)
+	time.Sleep(time.Second * 1)
+	err := preCheckRequest(req)
 	if !strings.Contains(err.Error(), "no project or cluster found") {
-		t.Errorf("failed to test modifyResponse: %v", err)
+		t.Errorf("failed to test preCheckRequest: %v", err)
+	}
+
+	resp.Request.Header.Del("X-Forwarded-User")
+	err = preCheckRequest(req)
+	if !strings.Contains(err.Error(), "failed to found user name") {
+		t.Errorf("failed to test preCheckRequest: %v", err)
 	}
 
 	resp.Request.Header.Del("X-Forwarded-Access-Token")
-	err = modifyResponse(&resp)
+	err = preCheckRequest(req)
 	if !strings.Contains(err.Error(), "found unauthorized user") {
-		t.Errorf("failed to test modifyResponse: %v", err)
+		t.Errorf("failed to test preCheckRequest: %v", err)
 	}
 }
 
