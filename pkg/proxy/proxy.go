@@ -33,6 +33,14 @@ var (
 
 // HandleRequestAndRedirect is used to init proxy handler
 func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	if preCheckRequest(req) != nil {
+		_, err := res.Write(newEmptyMatrixHTTPBody())
+		if err != nil {
+			klog.Errorf("failed to write response: %v", err)
+		}
+		return
+	}
+
 	serverURL, err := url.Parse(os.Getenv("METRICS_SERVER"))
 	if err != nil {
 		klog.Errorf("failed to parse url: %v", err)
@@ -40,23 +48,21 @@ func HandleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	serverHost = serverURL.Host
 	serverScheme = serverURL.Scheme
 
-	// create the reverse proxy
 	tlsTransport, err := getTLSTransport()
 	if err != nil {
 		klog.Fatalf("failed to create tls transport: %v", err)
 	}
 
+	// create the reverse proxy
 	proxy := httputil.ReverseProxy{
 		Director:  proxyRequest,
 		Transport: tlsTransport,
 	}
 
-	proxy.ModifyResponse = modifyResponse
-	proxy.ErrorHandler = errorHandle
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = serverURL.Host
 	req.URL.Path = path.Join(basePath, req.URL.Path)
-	util.ModifyMetricsQueryParams(req, config.GetConfigOrDie().Host)
+	util.ModifyMetricsQueryParams(req, config.GetConfigOrDie().Host+projectsAPIPath)
 	proxy.ServeHTTP(res, req)
 }
 
@@ -67,22 +73,32 @@ func errorHandle(rw http.ResponseWriter, req *http.Request, err error) {
 	}
 }
 
-func modifyResponse(r *http.Response) error {
-	token := r.Request.Header.Get("X-Forwarded-Access-Token")
+func preCheckRequest(req *http.Request) error {
+	token := req.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
 		return errors.New("found unauthorized user")
 	}
 
-	projectList := util.FetchUserProjectList(token, config.GetConfigOrDie().Host)
+	userName := req.Header.Get("X-Forwarded-User")
+	if userName == "" {
+		return errors.New("failed to found user name")
+	}
+
+	projectList, ok := util.GetUserProjectList(token)
+	if !ok {
+		projectList = util.FetchUserProjectList(token, config.GetConfigOrDie().Host+projectsAPIPath)
+		up := util.NewUserProject(userName, token, projectList)
+		util.UpdateUserProject(up)
+	}
+
 	if len(projectList) == 0 || len(util.GetAllManagedClusterNames()) == 0 {
-		r.Body = newEmptyMatrixHTTPBody()
 		return errors.New("no project or cluster found")
 	}
 
 	return nil
 }
 
-func newEmptyMatrixHTTPBody() io.ReadCloser {
+func newEmptyMatrixHTTPBody() []byte {
 	var bodyBuff bytes.Buffer
 	gz := gzip.NewWriter(&bodyBuff)
 	if _, err := gz.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[]}}`)); err != nil {
@@ -99,7 +115,7 @@ func newEmptyMatrixHTTPBody() io.ReadCloser {
 		klog.Errorf("failed to write with gizp: %v", err)
 	}
 
-	return ioutil.NopCloser(bytes.NewBufferString(gzipBuff.String()))
+	return gzipBuff.Bytes()
 }
 
 func gzipWrite(w io.Writer, data []byte) error {

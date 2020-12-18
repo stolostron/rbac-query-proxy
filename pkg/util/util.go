@@ -36,26 +36,40 @@ func GetAllManagedClusterNames() map[string]string {
 	return allManagedClusterNames
 }
 
+func InitAllManagedClusterNames() {
+	allManagedClusterNames = map[string]string{}
+}
+
 // ModifyMetricsQueryParams will modify request url params for query metrics
 func ModifyMetricsQueryParams(req *http.Request, url string) {
 	userName := req.Header.Get("X-Forwarded-User")
-	klog.Infof("user is %v", userName)
-	klog.Infof("URL is: %s", req.URL)
-	klog.Infof("URL path is: %v", req.URL.Path)
-	klog.Infof("URL RawQuery is: %v", req.URL.RawQuery)
+	klog.V(1).Infof("user is %v", userName)
+	klog.V(1).Infof("URL is: %s", req.URL)
+	klog.V(1).Infof("URL path is: %v", req.URL.Path)
+	klog.V(1).Infof("URL RawQuery is: %v", req.URL.RawQuery)
 	token := req.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
 		klog.Errorf("failed to get token from http header")
 	}
-	projectList := FetchUserProjectList(token, url)
+
+	projectList, ok := GetUserProjectList(token)
+	klog.V(1).Infof("projectList from local mem cache = %v, ok = %v", projectList, ok)
+	if !ok {
+		projectList = FetchUserProjectList(token, url)
+		up := NewUserProject(userName, token, projectList)
+		UpdateUserProject(up)
+		klog.V(1).Infof("projectList from api server = %v", projectList)
+	}
+
+	klog.V(1).Infof("cluster list: %v", allManagedClusterNames)
+	klog.V(1).Infof("user <%s> project list: %v", userName, projectList)
 	if canAccessAllClusters(projectList) {
 		klog.Infof("user <%v> have access to all clusters", userName)
 		return
 	}
+
 	clusterList := getUserClusterList(projectList)
 	klog.Infof("user <%v> have access to these clusters: %v", userName, clusterList)
-
-	// use clusterList to modify query url
 	queryValues := req.URL.Query()
 	if len(queryValues) == 0 {
 		return
@@ -66,17 +80,16 @@ func ModifyMetricsQueryParams(req *http.Request, url string) {
 	req.URL.RawQuery = queryValues.Encode()
 
 	queryValues = req.URL.Query()
-	klog.Info("modified URL is:")
-	klog.Infof("URL is: %s", req.URL)
-	klog.Infof("URL path is: %v", req.URL.Path)
-	klog.Infof("URL RawQuery is: %v", req.URL.RawQuery)
-
+	klog.V(1).Info("modified URL is:")
+	klog.V(1).Infof("URL is: %s", req.URL)
+	klog.V(1).Infof("URL path is: %v", req.URL.Path)
+	klog.V(1).Infof("URL RawQuery is: %v", req.URL.RawQuery)
 	return
 }
 
 // WatchManagedCluster will watch and save managedcluster when create/update/delete managedcluster
 func WatchManagedCluster(clusterClient clusterclientset.Interface) {
-	allManagedClusterNames = map[string]string{}
+	InitAllManagedClusterNames()
 	watchlist := cache.NewListWatchFromClient(clusterClient.ClusterV1().RESTClient(), "managedclusters", v1.NamespaceAll,
 		fields.Everything())
 	_, controller := cache.NewInformer(
@@ -108,7 +121,7 @@ func WatchManagedCluster(clusterClient clusterclientset.Interface) {
 	go controller.Run(stop)
 	for {
 		time.Sleep(time.Second * 30)
-		klog.Infof("found %v clusters", len(allManagedClusterNames))
+		klog.V(1).Infof("found %v clusters", len(allManagedClusterNames))
 	}
 }
 
