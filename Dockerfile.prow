@@ -2,7 +2,6 @@
 
 FROM registry.ci.openshift.org/open-cluster-management/builder:go1.15-linux-amd64 AS builder
 
-
 WORKDIR /workspace
 COPY . .
 
