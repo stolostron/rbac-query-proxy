@@ -32,8 +32,8 @@ Repo maintainers can assign you an issue or pull request by leaving a
 After your PR is ready to commit, please run following commands to check your code.
 
 ```shell
-make unit-tests
-make docker-binary
+make -f Makefile.prow unit-tests
+make -f Makefile.prow build
 ```
 
 ## Build images
@@ -41,5 +41,5 @@ make docker-binary
 Make sure your code build passed.
 
 ```shell
-docker build -t rbac-query-proxy:latest .
+docker build -f Dockerfile.prow -t rbac-query-proxy:latest .
 ```
