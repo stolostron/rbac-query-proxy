@@ -8,3 +8,6 @@ build:
 
 unit-tests:
 	go test `go list ./... | grep -v test`
+
+e2e-tests:
+	@echo "Running e2e tests"
