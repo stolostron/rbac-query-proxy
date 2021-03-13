@@ -2,26 +2,20 @@
 # Copyright (c) 2021 Red Hat, Inc.
 # Copyright Contributors to the Open Cluster Management project
 
-git config --global url."https://$GITHUB_TOKEN@github.com/open-cluster-management".insteadOf  "https://github.com/open-cluster-management"
-
 WORKDIR=`pwd`
-cd ${WORKDIR}/..
-git clone https://github.com/open-cluster-management/observability-kind-cluster.git
-cd observability-kind-cluster
-./setup.sh $1
+git clone --depth 1 https://github.com/open-cluster-management/observability-e2e-test.git
+cd observability-e2e-test
+
+echo "Setup e2e test environment..."
+./cicd-scripts/setup-e2e-tests.sh -a install
 if [ $? -ne 0 ]; then
-    echo "Cannot setup environment successfully."
+    echo "Cannot setup test environment"
     exit 1
 fi
 
-cd ${WORKDIR}/..
-git clone https://github.com/open-cluster-management/observability-e2e-test.git
-cd observability-e2e-test
-
-# run test cases
-./cicd-scripts/tests.sh
+echo "Running e2e test.."
+./cicd-scripts/run-e2e-tests.sh
 if [ $? -ne 0 ]; then
-    echo "Cannot pass all test cases."
-    cat ./pkg/tests/results.xml
+    echo "Cannot pass all e2e test cases"
     exit 1
 fi
