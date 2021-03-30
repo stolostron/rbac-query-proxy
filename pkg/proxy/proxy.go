@@ -142,3 +142,53 @@ func proxyRequest(r *http.Request) {
 		}
 	}
 }
+
+func newEmptyMatrixHTTPBody0() []byte {
+	var bodyBuff bytes.Buffer
+	gz := gzip.NewWriter(&bodyBuff)
+	if _, err := gz.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[]}}`)); err != nil {
+		klog.Errorf("failed to write body: %v", err)
+	}
+
+	if err := gz.Close(); err != nil {
+		klog.Errorf("failed to close gzip writer: %v", err)
+	}
+
+	var gzipBuff bytes.Buffer
+	err := gzipWrite(&gzipBuff, bodyBuff.Bytes())
+	if err != nil {
+		klog.Errorf("failed to write with gizp: %v", err)
+	}
+
+	return gzipBuff.Bytes()
+}
+
+func gzipWrite1(w io.Writer, data []byte) error {
+	gw, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
+	defer gw.Close()
+	_, err = gw.Write(data)
+	return err
+}
+
+func proxyRequest2(r *http.Request) {
+	r.URL.Scheme = serverScheme
+	r.URL.Host = serverHost
+	if r.Method == http.MethodGet {
+		if strings.HasSuffix(r.URL.Path, "/api/v1/query") ||
+			strings.HasSuffix(r.URL.Path, "/api/v1/query_range") ||
+			strings.HasSuffix(r.URL.Path, "/api/v1/series") {
+			r.Method = http.MethodPost
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			r.Body = ioutil.NopCloser(strings.NewReader(r.URL.RawQuery))
+		}
+	}
+}
+
+func test(r *http.Request) {
+	var test1,test2, test3 string
+
+	test1 = "abc"
+}
