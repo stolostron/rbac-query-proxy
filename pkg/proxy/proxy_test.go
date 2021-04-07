@@ -98,6 +98,13 @@ func TestPreCheckRequest(t *testing.T) {
 		t.Errorf("failed to test preCheckRequest: %v", err)
 	}
 
+	resp.Request.Header.Del("X-Forwarded-Access-Token")
+	resp.Request.Header.Add("Authorization", "test")
+	err = preCheckRequest(req)
+	if err != nil {
+		t.Errorf("failed to test preCheckRequest with bear token: %v", err)
+	}
+
 	resp.Request.Header.Del("X-Forwarded-User")
 	err = preCheckRequest(req)
 	if !strings.Contains(err.Error(), "failed to found user name") {
@@ -105,10 +112,12 @@ func TestPreCheckRequest(t *testing.T) {
 	}
 
 	resp.Request.Header.Del("X-Forwarded-Access-Token")
+	resp.Request.Header.Del("Authorization")
 	err = preCheckRequest(req)
 	if !strings.Contains(err.Error(), "found unauthorized user") {
 		t.Errorf("failed to test preCheckRequest: %v", err)
 	}
+
 }
 
 func TestGzipWrite(t *testing.T) {

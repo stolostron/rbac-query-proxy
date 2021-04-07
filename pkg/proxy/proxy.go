@@ -25,6 +25,7 @@ import (
 const (
 	basePath        = "/api/metrics/v1/default"
 	projectsAPIPath = "/apis/project.openshift.io/v1/projects"
+	userAPIPath     = "/apis/user.openshift.io/v1/users/~"
 )
 
 var (
@@ -77,12 +78,22 @@ func errorHandle(rw http.ResponseWriter, req *http.Request, err error) {
 func preCheckRequest(req *http.Request) error {
 	token := req.Header.Get("X-Forwarded-Access-Token")
 	if token == "" {
-		return errors.New("found unauthorized user")
+		token = req.Header.Get("Authorization")
+		if token == "" {
+			return errors.New("found unauthorized user")
+		} else {
+			req.Header.Set("X-Forwarded-Access-Token", token)
+		}
 	}
 
 	userName := req.Header.Get("X-Forwarded-User")
 	if userName == "" {
-		return errors.New("failed to found user name")
+		userName = util.GetUserName(token, config.GetConfigOrDie().Host+userAPIPath)
+		if userName == "" {
+			return errors.New("failed to found user name")
+		} else {
+			req.Header.Set("X-Forwarded-User", userName)
+		}
 	}
 
 	projectList, ok := util.GetUserProjectList(token)
