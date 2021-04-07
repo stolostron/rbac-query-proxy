@@ -13,9 +13,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	projectv1 "github.com/openshift/api/project/v1"
+	userv1 "github.com/openshift/api/user/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
@@ -139,7 +141,10 @@ func sendHTTPRequest(url string, verb string, token string) (*http.Response, err
 		return defaultClient.Do(req)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+token)
+	if !strings.HasPrefix(token, "Bearer ") {
+		token = "Bearer " + token
+	}
+	req.Header.Set("Authorization", token)
 	caCert, err := ioutil.ReadFile(filepath.Clean(caPath))
 	if err != nil {
 		klog.Error("failed to load root ca cert file")
@@ -189,6 +194,25 @@ func FetchUserProjectList(token string, url string) []string {
 	}
 
 	return projectList
+}
+
+func GetUserName(token string, url string) string {
+	resp, err := sendHTTPRequest(url, "GET", token)
+	if err != nil {
+		klog.Errorf("failed to send http request: %v", err)
+		writeError(fmt.Sprintf("failed to send http request: %v", err))
+		return ""
+	}
+	defer resp.Body.Close()
+
+	user := userv1.User{}
+	err = json.NewDecoder(resp.Body).Decode(&user)
+	if err != nil {
+		klog.Errorf("failed to decode response json body: %v", err)
+		return ""
+	}
+
+	return user.Name
 }
 
 // Contains is used to check whether a list contains string s
