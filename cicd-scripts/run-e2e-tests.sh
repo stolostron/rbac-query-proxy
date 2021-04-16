@@ -16,6 +16,7 @@ fi
 cd ${WORKDIR}/..
 git clone https://github.com/open-cluster-management/observability-e2e-test.git
 cd observability-e2e-test
+git checkout release-2.2
 
 # run test cases
 ./cicd-scripts/tests.sh
