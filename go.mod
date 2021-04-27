@@ -1,6 +1,6 @@
 module github.com/open-cluster-management/rbac-query-proxy
 
-go 1.14
+go 1.16
 
 require (
 	github.com/open-cluster-management/api v0.0.0-20200715201722-3c3c076bf062
