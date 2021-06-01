@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	projectv1 "github.com/openshift/api/project/v1"
@@ -34,6 +35,7 @@ const (
 )
 
 var allManagedClusterNames map[string]string
+var mapMutex sync.RWMutex
 
 func GetAllManagedClusterNames() map[string]string {
 	return allManagedClusterNames
@@ -41,6 +43,7 @@ func GetAllManagedClusterNames() map[string]string {
 
 func InitAllManagedClusterNames() {
 	allManagedClusterNames = map[string]string{}
+	mapMutex = sync.RWMutex{}
 }
 
 // ModifyMetricsQueryParams will modify request url params for query metrics
@@ -103,19 +106,25 @@ func WatchManagedCluster(clusterClient clusterclientset.Interface) {
 			AddFunc: func(obj interface{}) {
 				clusterName := obj.(*clusterv1.ManagedCluster).Name
 				klog.Infof("added a managedcluster: %s \n", obj.(*clusterv1.ManagedCluster).Name)
+				mapMutex.Lock()
 				allManagedClusterNames[clusterName] = clusterName
+				mapMutex.Unlock()
 			},
 
 			DeleteFunc: func(obj interface{}) {
 				clusterName := obj.(*clusterv1.ManagedCluster).Name
 				klog.Infof("deleted a managedcluster: %s \n", obj.(*clusterv1.ManagedCluster).Name)
+				mapMutex.Lock()
 				delete(allManagedClusterNames, clusterName)
+				mapMutex.Unlock()
 			},
 
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				clusterName := newObj.(*clusterv1.ManagedCluster).Name
 				klog.Infof("changed a managedcluster: %s \n", newObj.(*clusterv1.ManagedCluster).Name)
+				mapMutex.Lock()
 				allManagedClusterNames[clusterName] = clusterName
+				mapMutex.Unlock()
 			},
 		},
 	)
@@ -124,7 +133,9 @@ func WatchManagedCluster(clusterClient clusterclientset.Interface) {
 	go controller.Run(stop)
 	for {
 		time.Sleep(time.Second * 30)
+		mapMutex.RLock()
 		klog.V(1).Infof("found %v clusters", len(allManagedClusterNames))
+		mapMutex.RUnlock()
 	}
 }
 
@@ -227,16 +238,20 @@ func Contains(list []string, s string) bool {
 
 // canAccessAllClusters check user have permission to access all clusters
 func canAccessAllClusters(projectList []string) bool {
+	mapMutex.RLock()
 	if len(allManagedClusterNames) == 0 && len(projectList) == 0 {
+		mapMutex.RUnlock()
 		return false
 	}
 
 	for name := range allManagedClusterNames {
 		if !Contains(projectList, name) {
+			mapMutex.RUnlock()
 			return false
 		}
 	}
 
+	mapMutex.RUnlock()
 	return true
 }
 
@@ -247,7 +262,9 @@ func getUserClusterList(projectList []string) []string {
 	}
 
 	for _, projectName := range projectList {
+		mapMutex.RLock()
 		clusterName, ok := allManagedClusterNames[projectName]
+		mapMutex.RUnlock()
 		if ok {
 			clusterList = append(clusterList, clusterName)
 		}
