@@ -1,9 +1,9 @@
-module github.com/open-cluster-management/rbac-query-proxy
+module github.com/stolostron/rbac-query-proxy
 
 go 1.17
 
 require (
-	github.com/open-cluster-management/api v0.0.0-20200715201722-3c3c076bf062
+	github.com/stolostron/api v0.0.0-20200715201722-3c3c076bf062
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/openshift/prom-label-proxy v0.0.0-20200605071327-9371ee4a9422
 	github.com/prometheus/prometheus v1.8.2-0.20200507164740-ecee9c8abfd1
