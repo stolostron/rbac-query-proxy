@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 
-	clusterclientset "github.com/open-cluster-management/api/client/cluster/clientset/versioned"
-	clusterv1 "github.com/open-cluster-management/api/cluster/v1"
-	"github.com/open-cluster-management/rbac-query-proxy/pkg/rewrite"
+	clusterclientset "github.com/stolostron/api/client/cluster/clientset/versioned"
+	clusterv1 "github.com/stolostron/api/cluster/v1"
+	"github.com/stolostron/rbac-query-proxy/pkg/rewrite"
 )
 
 const (
