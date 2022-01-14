@@ -2,7 +2,7 @@
 FROM golang:1.13.13 as builder
 
 # Copy in the go src
-WORKDIR /go/src/github.com/open-cluster-management/rbac-query-proxy
+WORKDIR /go/src/github.com/stolostron/rbac-query-proxy
 
 COPY pkg/    pkg/
 COPY cmd/main.go ./
@@ -18,7 +18,7 @@ RUN export GO111MODULE=on \
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 WORKDIR /
-COPY --from=builder /go/src/github.com/open-cluster-management/rbac-query-proxy/rbac-query-proxy .
+COPY --from=builder /go/src/github.com/stolostron/rbac-query-proxy/rbac-query-proxy .
 
 EXPOSE 3002
 
