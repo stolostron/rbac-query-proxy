@@ -17,7 +17,7 @@ addons:
 
 #branches:
 #  only:
-#    - master
+#    - main
 #    - /^release-[0-9]+\..*$/
 
 env:
@@ -43,8 +43,8 @@ stages:
 before_script:
   - make init
   - echo "https://${GITHUB_TOKEN}:x-oauth-basic@github.com" >> ~/.git-credentials
-  - export GOPRIVATE=github.com/open-cluster-management
-  - git config --global url."https://$GITHUB_TOKEN@github.com/open-cluster-management".insteadOf "https://github.com/open-cluster-management"
+  - export GOPRIVATE=github.com/stolostron
+  - git config --global url."https://$GITHUB_TOKEN@github.com/stolostron".insteadOf "https://github.com/stolostron"
   
 jobs:
   include:
@@ -73,7 +73,7 @@ jobs:
           make component/test/e2e
     - stage: release-ff
       name: "Push commits to current release branch"
-      if: type = push AND branch =~ /^master$/
+      if: type = push AND branch =~ /^main$/
       script:
         - make
         - make release-ff
