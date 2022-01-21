@@ -15,7 +15,7 @@ spec:
       serviceAccountName: rbac-query-proxy
       containers:
       - name: rbac-query-proxy
-        image: quay.io/open-cluster-management/rbac-query-proxy:2.3.0-SNAPSHOT-2021-04-14-20-44-29
+        image: quay.io/stolostron/rbac-query-proxy:2.3.0-SNAPSHOT-2021-04-14-20-44-29
         args:
         - "--listen-address=0.0.0.0:8080"
         - "--metrics-server=https://observability-observatorium-observatorium-api.open-cluster-management-observability.svc.cluster.local:8080"
