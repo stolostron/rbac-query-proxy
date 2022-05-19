@@ -13,3 +13,5 @@ $ docker build -f Dockerfile.prow -t rbac-query-proxy:latest .
 ```
 
 Now, you can use this image to replace the rbac-query-proxy component and verify your PRs.
+
+Rebuild Image: Thu May 19 15:01:17 EDT 2022
